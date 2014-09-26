@@ -1,0 +1,6 @@
+{
+	"name": "default_me",
+	"description": "The default me plugin for oauthd.",
+	"version": "0.0.1",
+	"main": "index.js"
+}
