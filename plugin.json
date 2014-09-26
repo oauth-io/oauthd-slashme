@@ -1,5 +1,5 @@
 {
-	"name": "default_me",
+	"name": "slashme",
 	"description": "The default me plugin for oauthd.",
 	"version": "0.0.1",
 	"main": "index.js"
