@@ -18,13 +18,13 @@ fs = require('fs');
 Stream = require('stream');
 
 module.exports = function(env) {
-  var cors_middleware, exp, fieldMap, fixUrl, oauth, sendAbsentFeatureError;
+  var AbsentFeatureError, cors_middleware, exp, fieldMap, fixUrl, oauth;
   oauth = env.utilities.oauth;
   fixUrl = function(ref) {
     return ref.replace(/^([a-zA-Z\-_]+:\/)([^\/])/, '$1/$2');
   };
-  sendAbsentFeatureError = function(req, res, feature) {
-    return res.send(501, "This provider does not support the " + feature + " feature yet");
+  AbsentFeatureError = function(feature) {
+    return new env.utilities.check.Error("This provider does not support the " + feature + " feature yet");
   };
   cors_middleware = function(req, res, next) {
     var oauthio, origin, ref, urlinfos;
@@ -97,22 +97,9 @@ module.exports = function(env) {
         return next(false);
       };
     })(this));
-    return env.server.get(new RegExp('^/auth/([a-zA-Z0-9_\\.~-]+)/me$'), restify.queryParser(), cors_middleware, (function(_this) {
-      return function(req, res, next) {
-        var cb, filter, oauthio, provider;
-        cb = env.server.send(res, next);
-        provider = req.params[0];
-        filter = req.query.filter;
-        filter = filter != null ? filter.split(',') : void 0;
-        oauthio = req.headers.oauthio;
-        if (!oauthio) {
-          return cb(new Error("You must provide a valid 'oauthio' http header"));
-        }
-        oauthio = qs.parse(oauthio);
-        if (!oauthio.k) {
-          return cb(new Error("oauthio_key", "You must provide a 'k' (key) in 'oauthio' header"));
-        }
-        return env.data.providers.getMeMapping(provider, function(err, content) {
+    env.plugins.slashme.me = function(provider, oauthio, filter, callback) {
+      return env.data.providers.getMeMapping(provider, (function(_this) {
+        return function(err, content) {
           var apiRequest, user_fetcher;
           if (!err) {
             if (content.url) {
@@ -123,14 +110,14 @@ module.exports = function(env) {
                 }
               }, provider, oauthio, function(err, options) {
                 if (err) {
-                  return sendAbsentFeatureError(req, res, 'me()');
+                  return callback(AbsentFeatureError('me()'));
                 }
                 options.json = true;
                 return request(options, function(err, response, body) {
                   if (err) {
-                    return sendAbsentFeatureError(req, res, 'me()');
+                    return callback(AbsentFeatureError('me()'));
                   }
-                  return res.send(fieldMap(body, content.fields, filter));
+                  return callback(null, fieldMap(body, content.fields, filter));
                 });
               });
             } else if (content.fetch) {
@@ -149,7 +136,7 @@ module.exports = function(env) {
                     return function(err, options) {
                       var chunks, rq;
                       if (err) {
-                        return sendAbsentFeatureError(req, res, 'me()');
+                        return callback(AbsentFeatureError('me()'));
                       }
                       options.json = true;
                       rq = request(options, function(err, response, body) {
@@ -174,7 +161,7 @@ module.exports = function(env) {
                             return zlib.gunzip(buffer, function(err, decoded) {
                               var body, k, value, _results;
                               if (err) {
-                                res.send(500, err);
+                                return callback(err);
                               }
                               body = JSON.parse(decoded.toString());
                               _results = [];
@@ -211,7 +198,7 @@ module.exports = function(env) {
                     return function(err, options) {
                       var chunks, rq;
                       if (err) {
-                        return sendAbsentFeatureError(req, res, 'me()');
+                        return callback(AbsentFeatureError('me()'));
                       }
                       options.json = true;
                       options.headers['accept-encoding'] = void 0;
@@ -228,14 +215,14 @@ module.exports = function(env) {
                             return zlib.gunzip(buffer, function(err, decoded) {
                               var body;
                               if (err) {
-                                res.send(500, err);
+                                return callback(err);
                               }
                               body = JSON.parse(decoded.toString());
-                              return res.send(fieldMap(body, content.fields, filter));
+                              return callback(null, fieldMap(body, content.fields, filter));
                             });
                           } else {
                             body = JSON.parse(buffer.toString());
-                            return res.send(fieldMap(body, content.fields, filter));
+                            return callback(null, fieldMap(body, content.fields, filter));
                           }
                         });
                       });
@@ -244,11 +231,35 @@ module.exports = function(env) {
                 }
               }, function() {});
             } else {
-              return sendAbsentFeatureError(req, res, 'me()');
+              return callback(AbsentFeatureError('me()'));
             }
           } else {
-            return sendAbsentFeatureError(req, res, 'me()');
+            return callback(AbsentFeatureError('me()'));
           }
+        };
+      })(this));
+    };
+    return env.server.get(new RegExp('^/auth/([a-zA-Z0-9_\\.~-]+)/me$'), restify.queryParser(), cors_middleware, (function(_this) {
+      return function(req, res, next) {
+        var cb, filter, oauthio, provider;
+        cb = env.server.send(res, next);
+        provider = req.params[0];
+        filter = req.query.filter;
+        filter = filter != null ? filter.split(',') : void 0;
+        oauthio = req.headers.oauthio;
+        if (!oauthio) {
+          return cb(new Error("You must provide a valid 'oauthio' http header"));
+        }
+        oauthio = qs.parse(oauthio);
+        if (!oauthio.k) {
+          return cb(new Error("oauthio_key", "You must provide a 'k' (key) in 'oauthio' header"));
+        }
+        return env.plugins.slashme.me(provider, oauthio, filter, function(err, me) {
+          if (err) {
+            return next(err);
+          }
+          res.send(me);
+          return next();
         });
       };
     })(this));

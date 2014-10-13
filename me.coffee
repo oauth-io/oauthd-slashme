@@ -30,8 +30,8 @@ module.exports = (env) ->
 	fixUrl = (ref) -> ref.replace /^([a-zA-Z\-_]+:\/)([^\/])/, '$1/$2'
 
 
-	sendAbsentFeatureError = (req, res, feature) ->
-		res.send 501, "This provider does not support the " + feature + " feature yet"
+	AbsentFeatureError = (feature) ->
+		return new env.utilities.check.Error "This provider does not support the " + feature + " feature yet"
 
 	cors_middleware = (req, res, next) ->
 		oauthio = req.headers.oauthio
@@ -90,27 +90,17 @@ module.exports = (env) ->
 			res.send 200
 			next false
 
-		env.server.get new RegExp('^/auth/([a-zA-Z0-9_\\.~-]+)/me$'), restify.queryParser(), cors_middleware, (req, res, next) =>
-			cb = env.server.send res, next
-			provider = req.params[0]
-			filter = req.query.filter
-			filter = filter?.split ','
-			oauthio = req.headers.oauthio
-			if ! oauthio
-				return cb new Error "You must provide a valid 'oauthio' http header"
-			oauthio = qs.parse(oauthio)
-			if ! oauthio.k
-				return cb new Error "oauthio_key", "You must provide a 'k' (key) in 'oauthio' header"
+		env.plugins.slashme.me = (provider, oauthio, filter, callback) ->
 			env.data.providers.getMeMapping provider, (err, content) =>
 				if !err
 					if content.url
 						env.plugins.request.apiRequest {apiUrl: content.url, headers: { 'User-Agent': 'Node' } }, provider, oauthio, (err, options) =>
-							return sendAbsentFeatureError(req, res, 'me()') if err
+							return callback AbsentFeatureError('me()') if err
 							options.json = true
 							request options, (err, response, body) =>
-								return sendAbsentFeatureError(req, res, 'me()') if err
+								return callback AbsentFeatureError('me()') if err
 								# parsing body and mapping values to common field names, and sending the result
-								res.send fieldMap(body, content.fields, filter)
+								return callback null, fieldMap(body, content.fields, filter)
 					else if content.fetch
 						user_fetcher = {}
 						apiRequest = env.plugins.request.apiRequest
@@ -118,7 +108,7 @@ module.exports = (env) ->
 							if typeof item == 'object'
 								url = item.url
 								apiRequest {apiUrl: content.url, headers: { 'User-Agent': 'Node' } }, provider, oauthio, (err, options) =>
-									return sendAbsentFeatureError(req, res, 'me()') if err
+									return callback AbsentFeatureError('me()') if err
 									options.json = true
 									rq = request options, (err, response, body) =>
 										for k of item.export
@@ -133,7 +123,7 @@ module.exports = (env) ->
 											buffer = Buffer.concat chunks
 											if rs.headers['content-encoding'] == 'gzip'
 												zlib.gunzip buffer, (err, decoded) ->
-													res.send 500, err if err
+													return callback err if err
 													body = JSON.parse decoded.toString()
 													for k of item.export
 														value = item.export[k](body)
@@ -148,9 +138,9 @@ module.exports = (env) ->
 							if typeof item == 'function'
 								url = item(user_fetcher)
 								apiRequest {apiUrl: url, headers: { 'User-Agent': 'Node' } }, provider, oauthio, (err, options) =>
-									return sendAbsentFeatureError(req, res, 'me()') if err
+									return callback AbsentFeatureError('me()') if err
 									options.json = true
-									
+
 									options.headers['accept-encoding'] = undefined
 									rq = request options
 									chunks = []
@@ -161,17 +151,37 @@ module.exports = (env) ->
 											buffer = Buffer.concat chunks
 											if rs.headers['content-encoding'] == 'gzip'
 												zlib.gunzip buffer, (err, decoded) ->
-													res.send 500, err if err
+													return callback err if err
 													body = JSON.parse decoded.toString()
-													res.send fieldMap(body, content.fields, filter)
+													return callback null, fieldMap(body, content.fields, filter)
 											else
 												body = JSON.parse buffer.toString()
-												res.send fieldMap(body, content.fields, filter)
+												return callback null, fieldMap(body, content.fields, filter)
 
 
 						, ->
 					else
-						return sendAbsentFeatureError(req, res, 'me()')
+						return callback AbsentFeatureError('me()')
 				else
-					return sendAbsentFeatureError(req, res, 'me()')
-	exp
+					return callback AbsentFeatureError('me()')
+
+
+		env.server.get new RegExp('^/auth/([a-zA-Z0-9_\\.~-]+)/me$'), restify.queryParser(), cors_middleware, (req, res, next) =>
+			cb = env.server.send res, next
+			provider = req.params[0]
+			filter = req.query.filter
+			filter = filter?.split ','
+			oauthio = req.headers.oauthio
+			if ! oauthio
+				return cb new Error "You must provide a valid 'oauthio' http header"
+			oauthio = qs.parse(oauthio)
+			if ! oauthio.k
+				return cb new Error "oauthio_key", "You must provide a 'k' (key) in 'oauthio' header"
+
+			env.plugins.slashme.me provider, oauthio, filter, (err, me) ->
+				return next err if err
+				res.send me
+				next()
+
+
+	return exp
