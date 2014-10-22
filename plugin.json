@@ -1,6 +1,5 @@
 {
 	"name": "slashme",
-	"description": "The default me plugin for oauthd.",
-	"version": "0.0.1",
+	"description": "Slashme allows you to retrieve unified user information with no effort.",
 	"main": "index.js"
 }
