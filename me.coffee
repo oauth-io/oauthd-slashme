@@ -152,10 +152,16 @@ module.exports = (env) ->
 											if rs.headers['content-encoding'] == 'gzip'
 												zlib.gunzip buffer, (err, decoded) ->
 													return callback err if err
-													body = JSON.parse decoded.toString()
+													try
+														body = JSON.parse decoded.toString()
+													catch e
+														return callback e if e
 													return callback null, fieldMap(body, content.fields, filter)
 											else
-												body = JSON.parse buffer.toString()
+												try
+													body = JSON.parse buffer.toString()
+												catch e
+													return callback e if e
 												return callback null, fieldMap(body, content.fields, filter)
 
 
