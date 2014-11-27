@@ -209,19 +209,33 @@ module.exports = function(env) {
                           return chunks.push(chunk);
                         });
                         return rs.on('end', function() {
-                          var body, buffer;
+                          var body, buffer, e;
                           buffer = Buffer.concat(chunks);
                           if (rs.headers['content-encoding'] === 'gzip') {
                             return zlib.gunzip(buffer, function(err, decoded) {
-                              var body;
+                              var body, e;
                               if (err) {
                                 return callback(err);
                               }
-                              body = JSON.parse(decoded.toString());
+                              try {
+                                body = JSON.parse(decoded.toString());
+                              } catch (_error) {
+                                e = _error;
+                                if (e) {
+                                  return callback(e);
+                                }
+                              }
                               return callback(null, fieldMap(body, content.fields, filter));
                             });
                           } else {
-                            body = JSON.parse(buffer.toString());
+                            try {
+                              body = JSON.parse(buffer.toString());
+                            } catch (_error) {
+                              e = _error;
+                              if (e) {
+                                return callback(e);
+                              }
+                            }
                             return callback(null, fieldMap(body, content.fields, filter));
                           }
                         });
