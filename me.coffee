@@ -97,6 +97,7 @@ module.exports = (env) ->
 						env.plugins.request.apiRequest {apiUrl: content.url, headers: { 'User-Agent': 'Node' } }, provider, oauthio, (err, options) =>
 							return callback AbsentFeatureError('me()') if err
 							options.json = true
+							options.method ?= 'GET'
 							request options, (err, response, body) =>
 								return callback AbsentFeatureError('me()') if err
 								# parsing body and mapping values to common field names, and sending the result
@@ -104,12 +105,13 @@ module.exports = (env) ->
 					else if content.fetch
 						user_fetcher = {}
 						apiRequest = env.plugins.request.apiRequest
-						async.eachSeries content.fetch, (item, cb) -> 
+						async.eachSeries content.fetch, (item, cb) ->
 							if typeof item == 'object'
 								url = item.url
 								apiRequest {apiUrl: content.url, headers: { 'User-Agent': 'Node' } }, provider, oauthio, (err, options) =>
 									return callback AbsentFeatureError('me()') if err
 									options.json = true
+									options.method ?= 'GET'
 									rq = request options, (err, response, body) =>
 										for k of item.export
 											value = item.export[k](body)
@@ -140,8 +142,8 @@ module.exports = (env) ->
 								apiRequest {apiUrl: url, headers: { 'User-Agent': 'Node' } }, provider, oauthio, (err, options) =>
 									return callback AbsentFeatureError('me()') if err
 									options.json = true
-
-									options.headers['accept-encoding'] = undefined
+									options.method ?= 'GET'
+									delete options.headers['accept-encoding']
 									rq = request options
 									chunks = []
 									rq.on 'response', (rs) ->
@@ -152,10 +154,16 @@ module.exports = (env) ->
 											if rs.headers['content-encoding'] == 'gzip'
 												zlib.gunzip buffer, (err, decoded) ->
 													return callback err if err
-													body = JSON.parse decoded.toString()
+													try
+														body = JSON.parse decoded.toString()
+													catch e
+														return callback e if e
 													return callback null, fieldMap(body, content.fields, filter)
 											else
-												body = JSON.parse buffer.toString()
+												try
+													body = JSON.parse buffer.toString()
+												catch e
+													return callback e if e
 												return callback null, fieldMap(body, content.fields, filter)
 
 

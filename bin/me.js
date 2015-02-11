@@ -113,6 +113,9 @@ module.exports = function(env) {
                   return callback(AbsentFeatureError('me()'));
                 }
                 options.json = true;
+                if (options.method == null) {
+                  options.method = 'GET';
+                }
                 return request(options, function(err, response, body) {
                   if (err) {
                     return callback(AbsentFeatureError('me()'));
@@ -139,6 +142,9 @@ module.exports = function(env) {
                         return callback(AbsentFeatureError('me()'));
                       }
                       options.json = true;
+                      if (options.method == null) {
+                        options.method = 'GET';
+                      }
                       rq = request(options, function(err, response, body) {
                         var k, value, _results;
                         _results = [];
@@ -201,7 +207,10 @@ module.exports = function(env) {
                         return callback(AbsentFeatureError('me()'));
                       }
                       options.json = true;
-                      options.headers['accept-encoding'] = void 0;
+                      if (options.method == null) {
+                        options.method = 'GET';
+                      }
+                      delete options.headers['accept-encoding'];
                       rq = request(options);
                       chunks = [];
                       return rq.on('response', function(rs) {
@@ -209,19 +218,33 @@ module.exports = function(env) {
                           return chunks.push(chunk);
                         });
                         return rs.on('end', function() {
-                          var body, buffer;
+                          var body, buffer, e;
                           buffer = Buffer.concat(chunks);
                           if (rs.headers['content-encoding'] === 'gzip') {
                             return zlib.gunzip(buffer, function(err, decoded) {
-                              var body;
+                              var body, e;
                               if (err) {
                                 return callback(err);
                               }
-                              body = JSON.parse(decoded.toString());
+                              try {
+                                body = JSON.parse(decoded.toString());
+                              } catch (_error) {
+                                e = _error;
+                                if (e) {
+                                  return callback(e);
+                                }
+                              }
                               return callback(null, fieldMap(body, content.fields, filter));
                             });
                           } else {
-                            body = JSON.parse(buffer.toString());
+                            try {
+                              body = JSON.parse(buffer.toString());
+                            } catch (_error) {
+                              e = _error;
+                              if (e) {
+                                return callback(e);
+                              }
+                            }
                             return callback(null, fieldMap(body, content.fields, filter));
                           }
                         });
