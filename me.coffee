@@ -28,7 +28,23 @@ module.exports = (env) ->
 	oauth = env.utilities.oauth
 
 	fixUrl = (ref) -> ref.replace /^([a-zA-Z\-_]+:\/)([^\/])/, '$1/$2'
+	env.middlewares.slashme = {}
+	env.middlewares.slashme.all = []
+	# Chain of middlewares that are applied to each Slashme endpoints
+	createMiddlewareChain = () ->
+		(req, res, next) ->
+			chain = []
+			i = 0
+			for k, middleware of env.middlewares.slashme.all
+				do (middleware) ->
+					chain.push (callback) ->
+						middleware req, res, callback
+			if chain.length == 0
+				return next()
+			async.waterfall chain, () ->
+				next()
 
+	middlewares_slashme_chain = createMiddlewareChain()
 
 	AbsentFeatureError = (feature) ->
 		return new env.utilities.check.Error "This provider does not support the " + feature + " feature yet"
@@ -166,7 +182,6 @@ module.exports = (env) ->
 													return callback e if e
 												return callback null, fieldMap(body, content.fields, filter)
 
-
 						, ->
 					else
 						return callback AbsentFeatureError('me()')
@@ -174,7 +189,7 @@ module.exports = (env) ->
 					return callback AbsentFeatureError('me()')
 
 
-		env.server.get new RegExp('^/auth/([a-zA-Z0-9_\\.~-]+)/me$'), restify.queryParser(), cors_middleware, (req, res, next) =>
+		env.server.get new RegExp('^/auth/([a-zA-Z0-9_\\.~-]+)/me$'), restify.queryParser(), cors_middleware, middlewares_slashme_chain, (req, res, next) =>
 			cb = env.server.send res, next
 			provider = req.params[0]
 			filter = req.query.filter
