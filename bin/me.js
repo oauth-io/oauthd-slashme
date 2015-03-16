@@ -113,6 +113,9 @@ module.exports = function(env) {
                   return callback(AbsentFeatureError('me()'));
                 }
                 options.json = true;
+                if (options.method == null) {
+                  options.method = 'GET';
+                }
                 return request(options, function(err, response, body) {
                   if (err) {
                     return callback(AbsentFeatureError('me()'));
@@ -139,6 +142,9 @@ module.exports = function(env) {
                         return callback(AbsentFeatureError('me()'));
                       }
                       options.json = true;
+                      if (options.method == null) {
+                        options.method = 'GET';
+                      }
                       rq = request(options, function(err, response, body) {
                         var k, value, _results;
                         _results = [];
@@ -201,7 +207,10 @@ module.exports = function(env) {
                         return callback(AbsentFeatureError('me()'));
                       }
                       options.json = true;
-                      options.headers['accept-encoding'] = void 0;
+                      if (options.method == null) {
+                        options.method = 'GET';
+                      }
+                      delete options.headers['accept-encoding'];
                       rq = request(options);
                       chunks = [];
                       return rq.on('response', function(rs) {
