@@ -18,11 +18,37 @@ fs = require('fs');
 Stream = require('stream');
 
 module.exports = function(env) {
-  var AbsentFeatureError, cors_middleware, exp, fieldMap, fixUrl, oauth;
+  var AbsentFeatureError, cors_middleware, createMiddlewareChain, exp, fieldMap, fixUrl, middlewares_slashme_chain, oauth;
   oauth = env.utilities.oauth;
   fixUrl = function(ref) {
     return ref.replace(/^([a-zA-Z\-_]+:\/)([^\/])/, '$1/$2');
   };
+  env.middlewares.slashme = {};
+  env.middlewares.slashme.all = [];
+  createMiddlewareChain = function() {
+    return function(req, res, next) {
+      var chain, i, k, middleware, _fn, _ref;
+      chain = [];
+      i = 0;
+      _ref = env.middlewares.slashme.all;
+      _fn = function(middleware) {
+        return chain.push(function(callback) {
+          return middleware(req, res, callback);
+        });
+      };
+      for (k in _ref) {
+        middleware = _ref[k];
+        _fn(middleware);
+      }
+      if (chain.length === 0) {
+        return next();
+      }
+      return async.waterfall(chain, function() {
+        return next();
+      });
+    };
+  };
+  middlewares_slashme_chain = createMiddlewareChain();
   AbsentFeatureError = function(feature) {
     return new env.utilities.check.Error("This provider does not support the " + feature + " feature yet");
   };
@@ -262,7 +288,7 @@ module.exports = function(env) {
         };
       })(this));
     };
-    return env.server.get(new RegExp('^/auth/([a-zA-Z0-9_\\.~-]+)/me$'), restify.queryParser(), cors_middleware, (function(_this) {
+    return env.server.get(new RegExp('^/auth/([a-zA-Z0-9_\\.~-]+)/me$'), restify.queryParser(), cors_middleware, middlewares_slashme_chain, (function(_this) {
       return function(req, res, next) {
         var cb, filter, oauthio, provider;
         cb = env.server.send(res, next);
