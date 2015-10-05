@@ -157,7 +157,7 @@ module.exports = function(env) {
                 if (typeof item === 'object') {
                   url = item.url;
                   apiRequest({
-                    apiUrl: content.url,
+                    apiUrl: item.url,
                     headers: {
                       'User-Agent': 'Node'
                     }
@@ -172,14 +172,12 @@ module.exports = function(env) {
                         options.method = 'GET';
                       }
                       rq = request(options, function(err, response, body) {
-                        var k, results, value;
-                        results = [];
+                        var k, value;
                         for (k in item["export"]) {
                           value = item["export"][k](body);
                           user_fetcher[k] = value;
-                          results.push(cb());
                         }
-                        return results;
+                        return cb();
                       });
                       chunks = [];
                       return rq.on('response', function(rs) {

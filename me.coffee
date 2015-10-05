@@ -124,7 +124,7 @@ module.exports = (env) ->
 						async.eachSeries content.fetch, (item, cb) ->
 							if typeof item == 'object'
 								url = item.url
-								apiRequest {apiUrl: content.url, headers: { 'User-Agent': 'Node' } }, provider, oauthio, (err, options) =>
+								apiRequest {apiUrl: item.url, headers: { 'User-Agent': 'Node' } }, provider, oauthio, (err, options) =>
 									return callback AbsentFeatureError('me()') if err
 									options.json = true
 									options.method ?= 'GET'
@@ -132,7 +132,7 @@ module.exports = (env) ->
 										for k of item.export
 											value = item.export[k](body)
 											user_fetcher[k] = value
-											cb()
+										cb()
 									chunks = []
 									rq.on 'response', (rs) ->
 										rs.on 'data',  (chunk) ->
