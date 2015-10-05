@@ -1,5 +1,5 @@
 var Stream, Url, async, fs, qs, request, restify, zlib,
-  __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
+  indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
 async = require('async');
 
@@ -27,18 +27,18 @@ module.exports = function(env) {
   env.middlewares.slashme.all = [];
   createMiddlewareChain = function() {
     return function(req, res, next) {
-      var chain, i, k, middleware, _fn, _ref;
+      var chain, fn, i, k, middleware, ref1;
       chain = [];
       i = 0;
-      _ref = env.middlewares.slashme.all;
-      _fn = function(middleware) {
+      ref1 = env.middlewares.slashme.all;
+      fn = function(middleware) {
         return chain.push(function(callback) {
           return middleware(req, res, callback);
         });
       };
-      for (k in _ref) {
-        middleware = _ref[k];
-        _fn(middleware);
+      for (k in ref1) {
+        middleware = ref1[k];
+        fn(middleware);
       }
       if (chain.length === 0) {
         return next();
@@ -79,7 +79,7 @@ module.exports = function(env) {
     result = {};
     for (k in map_array) {
       field = map_array[k];
-      if (!filter || __indexOf.call(filter, k) >= 0) {
+      if (!filter || indexOf.call(filter, k) >= 0) {
         if (typeof field === 'string') {
           if (field === '=') {
             result[k] = body[k];
@@ -172,14 +172,14 @@ module.exports = function(env) {
                         options.method = 'GET';
                       }
                       rq = request(options, function(err, response, body) {
-                        var k, value, _results;
-                        _results = [];
+                        var k, results, value;
+                        results = [];
                         for (k in item["export"]) {
                           value = item["export"][k](body);
                           user_fetcher[k] = value;
-                          _results.push(cb());
+                          results.push(cb());
                         }
-                        return _results;
+                        return results;
                       });
                       chunks = [];
                       return rq.on('response', function(rs) {
@@ -187,32 +187,32 @@ module.exports = function(env) {
                           return chunks.push(chunk);
                         });
                         return rs.on('end', function() {
-                          var body, buffer, k, value, _results;
+                          var body, buffer, k, results, value;
                           buffer = Buffer.concat(chunks);
                           if (rs.headers['content-encoding'] === 'gzip') {
                             return zlib.gunzip(buffer, function(err, decoded) {
-                              var body, k, value, _results;
+                              var body, k, results, value;
                               if (err) {
                                 return callback(err);
                               }
                               body = JSON.parse(decoded.toString());
-                              _results = [];
+                              results = [];
                               for (k in item["export"]) {
                                 value = item["export"][k](body);
                                 user_fetcher[k] = value;
-                                _results.push(cb());
+                                results.push(cb());
                               }
-                              return _results;
+                              return results;
                             });
                           } else {
                             body = JSON.parse(buffer.toString());
-                            _results = [];
+                            results = [];
                             for (k in item["export"]) {
                               value = item["export"][k](body);
                               user_fetcher[k] = value;
-                              _results.push(cb());
+                              results.push(cb());
                             }
-                            return _results;
+                            return results;
                           }
                         });
                       });

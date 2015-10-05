@@ -1,5 +1,5 @@
 # OAuth daemon
-# Copyright (C) 2014 Webshell SAS
+# Copyright (C) 2015 Webshell SAS
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
