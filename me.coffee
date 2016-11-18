@@ -1,5 +1,5 @@
 # OAuth daemon
-# Copyright (C) 2015 Webshell SAS
+# Copyright (C) 2016 Webshell SAS
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -16,12 +16,12 @@
 
 
 async = require 'async'
-qs = require 'querystring'
 Url = require 'url'
 restify = require 'restify'
 request = require 'request'
 zlib = require 'zlib'
 fs = require 'fs'
+qs = require 'qs'
 Stream = require 'stream'
 
 module.exports = (env) ->
@@ -128,14 +128,10 @@ module.exports = (env) ->
 									return callback AbsentFeatureError('me()') if err
 									options.json = true
 									options.method ?= 'GET'
-									rq = request options, (err, response, body) =>
-										for k of item.export
-											value = item.export[k](body)
-											user_fetcher[k] = value
-										cb()
+									rq = request options
 									chunks = []
 									rq.on 'response', (rs) ->
-										rs.on 'data',  (chunk) ->
+										rs.on 'data', (chunk) ->
 											chunks.push chunk
 										rs.on 'end', ->
 											buffer = Buffer.concat chunks
@@ -146,15 +142,17 @@ module.exports = (env) ->
 													for k of item.export
 														value = item.export[k](body)
 														user_fetcher[k] = value
-														cb()
+													cb()
 											else
 												body = JSON.parse buffer.toString()
 												for k of item.export
 													value = item.export[k](body)
 													user_fetcher[k] = value
-													cb()
+												cb()
 							if typeof item == 'function'
 								url = item(user_fetcher)
+								if typeof url == 'object'
+									return callback null, fieldMap(url, content.fields, filter)
 								apiRequest {apiUrl: url, headers: { 'User-Agent': 'Node' } }, provider, oauthio, (err, options) =>
 									return callback AbsentFeatureError('me()') if err
 									options.json = true

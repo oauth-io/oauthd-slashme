@@ -3,8 +3,6 @@ var Stream, Url, async, fs, qs, request, restify, zlib,
 
 async = require('async');
 
-qs = require('querystring');
-
 Url = require('url');
 
 restify = require('restify');
@@ -14,6 +12,8 @@ request = require('request');
 zlib = require('zlib');
 
 fs = require('fs');
+
+qs = require('qs');
 
 Stream = require('stream');
 
@@ -171,46 +171,35 @@ module.exports = function(env) {
                       if (options.method == null) {
                         options.method = 'GET';
                       }
-                      rq = request(options, function(err, response, body) {
-                        var k, value;
-                        for (k in item["export"]) {
-                          value = item["export"][k](body);
-                          user_fetcher[k] = value;
-                        }
-                        return cb();
-                      });
+                      rq = request(options);
                       chunks = [];
                       return rq.on('response', function(rs) {
                         rs.on('data', function(chunk) {
                           return chunks.push(chunk);
                         });
                         return rs.on('end', function() {
-                          var body, buffer, k, results, value;
+                          var body, buffer, k, value;
                           buffer = Buffer.concat(chunks);
                           if (rs.headers['content-encoding'] === 'gzip') {
                             return zlib.gunzip(buffer, function(err, decoded) {
-                              var body, k, results, value;
+                              var body, k, value;
                               if (err) {
                                 return callback(err);
                               }
                               body = JSON.parse(decoded.toString());
-                              results = [];
                               for (k in item["export"]) {
                                 value = item["export"][k](body);
                                 user_fetcher[k] = value;
-                                results.push(cb());
                               }
-                              return results;
+                              return cb();
                             });
                           } else {
                             body = JSON.parse(buffer.toString());
-                            results = [];
                             for (k in item["export"]) {
                               value = item["export"][k](body);
                               user_fetcher[k] = value;
-                              results.push(cb());
                             }
-                            return results;
+                            return cb();
                           }
                         });
                       });
@@ -219,6 +208,9 @@ module.exports = function(env) {
                 }
                 if (typeof item === 'function') {
                   url = item(user_fetcher);
+                  if (typeof url === 'object') {
+                    return callback(null, fieldMap(url, content.fields, filter));
+                  }
                   return apiRequest({
                     apiUrl: url,
                     headers: {
@@ -242,18 +234,18 @@ module.exports = function(env) {
                           return chunks.push(chunk);
                         });
                         return rs.on('end', function() {
-                          var body, buffer, e;
+                          var body, buffer, e, error;
                           buffer = Buffer.concat(chunks);
                           if (rs.headers['content-encoding'] === 'gzip') {
                             return zlib.gunzip(buffer, function(err, decoded) {
-                              var body, e;
+                              var body, e, error;
                               if (err) {
                                 return callback(err);
                               }
                               try {
                                 body = JSON.parse(decoded.toString());
-                              } catch (_error) {
-                                e = _error;
+                              } catch (error) {
+                                e = error;
                                 if (e) {
                                   return callback(e);
                                 }
@@ -263,8 +255,8 @@ module.exports = function(env) {
                           } else {
                             try {
                               body = JSON.parse(buffer.toString());
-                            } catch (_error) {
-                              e = _error;
+                            } catch (error) {
+                              e = error;
                               if (e) {
                                 return callback(e);
                               }
