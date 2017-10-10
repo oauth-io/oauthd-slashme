@@ -124,7 +124,7 @@ module.exports = (env) ->
 						async.eachSeries content.fetch, (item, cb) ->
 							if typeof item == 'object'
 								url = item.url
-								apiRequest {apiUrl: item.url, headers: { 'User-Agent': 'Node' } }, provider, oauthio, (err, options) =>
+								apiRequest {apiUrl: item.url, method: item.method || 'get', headers: { 'User-Agent': 'Node' } }, provider, oauthio, (err, options) =>
 									return callback AbsentFeatureError('me()') if err
 									options.json = true
 									options.method ?= 'GET'

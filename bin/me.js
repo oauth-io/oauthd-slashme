@@ -158,6 +158,7 @@ module.exports = function(env) {
                   url = item.url;
                   apiRequest({
                     apiUrl: item.url,
+                    method: item.method || 'get',
                     headers: {
                       'User-Agent': 'Node'
                     }
